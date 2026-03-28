@@ -2,17 +2,17 @@
 Autonomous Research Agent - Assignment 2
 =========================================
 
-An autonomous research agent built with LangChain that searches the web,
-gathers knowledge from multiple sources, analyzes data, and generates
+An autonomous research agent built with LangChain and LangGraph that searches
+the web, gathers knowledge from multiple sources, analyzes data, and generates
 a structured research report on any user-specified topic.
 
 Technologies Used:
-    - LangChain (ReAct Agent with AgentExecutor)
+    - LangChain + LangGraph (ReAct Agent)
     - ChatGroq (llama3-70b-8192)
     - Tavily Search (web search)
     - Wikipedia (encyclopedic knowledge)
 
-Author: Aryan Raj
+Author: Aditya Raj
 """
 
 import os
@@ -20,9 +20,8 @@ import re
 from datetime import datetime
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.agents import create_react_agent, AgentExecutor
-from langchain_core.prompts import PromptTemplate
+from langchain_core.messages import HumanMessage, SystemMessage
+from langgraph.prebuilt import create_react_agent
 from tools import get_search_tools
 
 # Load environment variables from .env file
@@ -32,7 +31,7 @@ load_dotenv()
 def initialize_llm():
     """
     Initialize the ChatGroq LLM with llama3-70b-8192 model.
-    
+
     Returns:
         ChatGroq: Configured LLM instance
     """
@@ -52,20 +51,13 @@ def initialize_llm():
     return llm
 
 
-def create_agent_prompt():
-    """
-    Create the ReAct prompt template for the research agent.
-    
-    Returns:
-        PromptTemplate: The prompt template for the ReAct agent
-    """
-    template = """You are an Autonomous Research Agent. Your task is to conduct 
-thorough research on a given topic and produce a comprehensive, well-structured 
+SYSTEM_PROMPT = """You are an Autonomous Research Agent. Your task is to conduct
+thorough research on a given topic and produce a comprehensive, well-structured
 research report.
 
 Your research process should follow these steps:
-1. Search the web using Tavily to find current and relevant information
-2. Query Wikipedia for background knowledge and foundational concepts
+1. Search the web using tavily_search to find current and relevant information
+2. Query wikipedia for background knowledge and foundational concepts
 3. Cross-reference and analyze the gathered information
 4. Synthesize insights from multiple sources
 5. Generate a structured research report
@@ -77,29 +69,16 @@ IMPORTANT GUIDELINES:
 - Provide balanced perspectives on the topic
 - Ensure the report is detailed and academically structured
 
-You have access to the following tools:
-
-{tools}
-
-Use the following format:
-
-Question: the input question/topic you must research
-Thought: you should always think about what to do next
-Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-... (this Thought/Action/Action Input/Observation can repeat N times)
-Thought: I now have enough information to compile a comprehensive report
-Final Answer: A structured research report with the following sections:
+After completing your research, generate a FINAL report with EXACTLY these sections:
 
 # Research Report: [Topic Name]
 
 ## 1. Introduction
-[Provide a comprehensive introduction to the topic, including its definition, 
+[Provide a comprehensive introduction to the topic, including its definition,
 background, and significance]
 
 ## 2. Key Insights
-[Present the most important findings from your research, organized as detailed 
+[Present the most important findings from your research, organized as detailed
 bullet points with explanations]
 
 ## 3. Applications
@@ -113,70 +92,37 @@ bullet points with explanations]
 
 ## 6. Conclusion
 [Provide a thoughtful summary of the research findings and future outlook]
-
-Begin your research now!
-
-Question: {input}
-Thought: {agent_scratchpad}"""
-
-    prompt = PromptTemplate(
-        template=template,
-        input_variables=["input", "agent_scratchpad"],
-        partial_variables={
-            "tools": "",
-            "tool_names": "",
-        },
-    )
-    return prompt
+"""
 
 
 def build_agent():
     """
-    Build the ReAct research agent with tools and LLM.
-    
+    Build the ReAct research agent with tools and LLM using LangGraph.
+
     Returns:
-        AgentExecutor: The configured agent executor
+        CompiledGraph: The configured ReAct agent graph
     """
     # Initialize components
     llm = initialize_llm()
     tools = get_search_tools()
-    prompt = create_agent_prompt()
 
-    # Update prompt with actual tool information
-    tool_strings = "\n".join(
-        [f"{tool.name}: {tool.description}" for tool in tools]
-    )
-    tool_names = ", ".join([tool.name for tool in tools])
-    prompt = prompt.partial(tools=tool_strings, tool_names=tool_names)
-
-    # Create ReAct agent
+    # Create ReAct agent using LangGraph
     agent = create_react_agent(
-        llm=llm,
+        model=llm,
         tools=tools,
-        prompt=prompt,
     )
 
-    # Wrap in AgentExecutor for execution management
-    agent_executor = AgentExecutor(
-        agent=agent,
-        tools=tools,
-        verbose=True,
-        handle_parsing_errors=True,
-        max_iterations=15,
-        return_intermediate_steps=True,
-    )
-
-    return agent_executor
+    return agent
 
 
 def save_report(topic, report):
     """
     Save the generated research report to the outputs folder.
-    
+
     Args:
         topic (str): The research topic
         report (str): The generated report content
-    
+
     Returns:
         str: The path to the saved report file
     """
@@ -213,7 +159,7 @@ def display_banner():
     """Display the application banner."""
     print("\n" + "=" * 60)
     print("  🔬 AUTONOMOUS RESEARCH AGENT")
-    print("  Assignment 2 - LangChain + ChatGroq + ReAct Agent")
+    print("  Assignment 2 - LangChain + LangGraph + ChatGroq")
     print("=" * 60)
     print("  Model   : llama3-70b-8192 (Groq)")
     print("  Tools   : Tavily Search, Wikipedia")
@@ -237,15 +183,23 @@ def main():
     print("-" * 60)
 
     try:
-        # Step 2-5: Build and run the agent
-        agent_executor = build_agent()
+        # Step 2-5: Build and run the ReAct agent
+        agent = build_agent()
 
-        result = agent_executor.invoke(
-            {"input": f"Conduct comprehensive research on: {topic}"}
-        )
+        # Invoke the agent with system prompt and user query
+        result = agent.invoke({
+            "messages": [
+                SystemMessage(content=SYSTEM_PROMPT),
+                HumanMessage(
+                    content=f"Conduct comprehensive research on: {topic}"
+                ),
+            ]
+        })
 
         # Step 6: Extract and display the report
-        report = result.get("output", "No report generated.")
+        # The final message from the agent contains the report
+        final_message = result["messages"][-1]
+        report = final_message.content
 
         print("\n" + "=" * 60)
         print("📄 RESEARCH REPORT")
