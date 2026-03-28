@@ -8,7 +8,7 @@ a structured research report on any user-specified topic.
 
 Technologies Used:
     - LangChain + LangGraph (ReAct Agent)
-    - ChatGroq (llama3-70b-8192)
+    - ChatGroq (llama-3.3-70b-versatile)
     - Tavily Search (web search)
     - Wikipedia (encyclopedic knowledge)
 
@@ -30,7 +30,7 @@ load_dotenv()
 
 def initialize_llm():
     """
-    Initialize the ChatGroq LLM with llama3-70b-8192 model.
+    Initialize the ChatGroq LLM with llama-3.3-70b-versatile model.
 
     Returns:
         ChatGroq: Configured LLM instance
@@ -43,7 +43,7 @@ def initialize_llm():
         )
 
     llm = ChatGroq(
-        model="llama3-70b-8192",
+        model="llama-3.3-70b-versatile",
         temperature=0.3,
         max_tokens=4096,
         api_key=groq_api_key,
@@ -145,7 +145,7 @@ def save_report(topic, report):
         f.write(f"{'=' * 60}\n")
         f.write(f"Topic: {topic}\n")
         f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-        f.write(f"Model: ChatGroq (llama3-70b-8192)\n")
+        f.write(f"Model: ChatGroq (llama-3.3-70b-versatile)\n")
         f.write(f"{'=' * 60}\n\n")
         f.write(report)
         f.write(f"\n\n{'=' * 60}\n")
@@ -161,7 +161,7 @@ def display_banner():
     print("  🔬 AUTONOMOUS RESEARCH AGENT")
     print("  Assignment 2 - LangChain + LangGraph + ChatGroq")
     print("=" * 60)
-    print("  Model   : llama3-70b-8192 (Groq)")
+    print("  Model   : llama-3.3-70b-versatile (Groq)")
     print("  Tools   : Tavily Search, Wikipedia")
     print("  Strategy: ReAct (Reasoning + Acting)")
     print("=" * 60 + "\n")

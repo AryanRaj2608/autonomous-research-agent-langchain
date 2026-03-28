@@ -16,7 +16,7 @@ An autonomous research agent built with **LangChain** that searches the web, gat
 |---|---|
 | Python | Core programming language |
 | LangChain | Agent framework and orchestration |
-| ChatGroq (llama3-70b-8192) | Large Language Model |
+| ChatGroq (llama-3.3-70b-versatile) | Large Language Model |
 | Tavily Search | Web search tool |
 | Wikipedia API | Encyclopedic knowledge tool |
 | ReAct Agent | Reasoning + Acting strategy |
